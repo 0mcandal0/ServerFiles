@@ -1,0 +1,37 @@
+Ugrade the Storefront Seververs - HA Mode
+
+
+Uninstalling Storefront from all the servers in a multiple server deployment removes the configurations of the authentication service, the stores, and the Receiver for Web sites, but retains users’ subscription data on the external database.
+
+195.41.214.49
+172.16.100.112
+
+\\DKLYNHYP399\ISO$\
+
+
+This means that if you decide to uninstall Storefront from a server in an existing multiple server deployment before installing the latest version, you must manually reconfigure your settings.
+
+Thus if you use the same configuration settings, you can connect your new stores to the existing application subscription database so that users do not need to re subscribe to their applications.
+
+Remove a StoreFront server from the load balancing environment.
+Upgrading the server one-by-one enables you to maintain the availability of your StoreFront deployment so that users do not experience any loss of service. Removing the server from the load balancing environment prevents users from connecting to the server during the upgrade.
+
+Restart the StoreFront server.
+Restarting the server ensures that any file locks are cleared and that there are no Windows updates pending.
+
+Stop the following services in order.
+Citrix Configuration Replication
+Citrix Credential Wallet
+Citrix Peer Name Resolution Service
+Stopping these services disconnects all current user connections and ensures that files cannot be locked while the upgrade is in progress.
+
+Run the StoreFront installation(the upgraded version) file as an administrator.
+For information on installing the StoreFront refer the Build Guide.
+
+Restart the StoreFront server and then restart the following services in order. Check that these and all the other Storefront services are running.
+Citrix Peer Name Resolution Service
+Citrix Credential Wallet
+Citrix Configuration Replication
+Restarting the server ensures that all caches are cleared before the Storefront services are restarted.
+
+Add the upgraded server back into the load balancing environment. Repeat the procedure above for each of the remaining servers in your StoreFront deployment until you have upgraded them all.
