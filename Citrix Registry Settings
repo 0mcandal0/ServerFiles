@@ -1,0 +1,26 @@
+REG ADD "HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" /v VisualFXSetting /t REG_DWORD /d 3 /f
+REG ADD "HKCU\Control Panel\Desktop" /v UserPreferencesMask /t REG_BINARY /d 9812038010000000  /f
+REG ADD "HKCU\SOFTWARE\Microsoft\Office\16.0\Visio\Application" /v LiveMouseDynamics /t REG_DWORD /d 1 /f
+REG ADD "HKLM\SYSTEM\CurrentControlSet\Control\Citrix" /v EnableVisualEffect /t REG_DWORD /d 1 /f
+
+
+Key name must be in quotes
+
+/t Specifies the type for the registry entry. Type must be one of the following:
+REG_SZ
+REG_MULTI_SZ
+REG_DWORD_BIG_ENDIAN
+REG_DWORD
+REG_BINARY
+REG_DWORD_LITTLE_ENDIAN
+REG_LINK
+REG_FULL_RESOURCE_DESCRIPTOR
+REG_EXPAND_SZ
+
+
+/v Specifies the name of the registry entry to be added under the specified subkey. 
+
+/d <Data>	Specifies the data for the new registry entry
+
+/f Adds the registry entry without prompting for confirmation.
+Vi
