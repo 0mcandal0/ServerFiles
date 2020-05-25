@@ -1,0 +1,289 @@
+#### SMTP Settings####
+$reportemailsubject = "Citrix : Daily Health Report"
+$now = Get-Date	
+$date=$now.ToShortDateString()
+
+$smtpsettings = @{
+	To =  "ITREPORTS@xyz.com"
+	From = "ITREPORTS@xyz.com"
+	CC= ""
+	#CC = "aa@xyz.com", bb@xyz.com
+	Subject = "$reportemailsubject - $now"
+	SmtpServer = "mail.topsoe.dk"
+	}
+#########################################################>
+
+asnp citrix*
+$hostname =@()
+$Path = Split-Path $MyInvocation.MyCommand.Path -Parent
+$DDCServer = Get-Content $Path\DDCServer.txt | Where-Object { $_.Trim() -ne '' }
+$LicenseServer = Get-Content $Path\LicenseServer.txt | Where-Object { $_.Trim() -ne '' }
+$InfraServers = Get-Content $Path\InfraServers.txt | Where-Object { $_.Trim() -ne '' }
+$hostname1=@()
+#$DDCServer= "Deliver Controller Server"
+#$Path = Split-Path $MyInvocation.MyCommand.Path -Parent
+
+$ServerList = Get-BrokerMachine -AdminAddress $DDCServer | Select-Object dnsname
+#Get-BrokerMachine -AdminAddress DDCNAME | Select-Object registrationstate, dnsname
+
+$hostname1 += $ServerList.dnsname
+
+foreach($item in $hostname1)
+{
+
+
+$hostname += $item.Split('.')[0]
+
+
+}
+
+$hostname = $hostname.Split('',[System.StringSplitOptions]::RemoveEmptyEntries)
+
+$FQDN= $ServerList[1].dnsname
+
+$domain= $FQDN.Substring($FQDN.IndexOf("."))
+
+$server
+$Result1 = @()
+$Result2 = @()
+$Result3 = @()
+$Result4 = @()
+$Result5 = @()
+
+
+
+ForEach($computername in $hostname) 
+{
+
+if(Test-Connection -ComputerName $computername -BufferSize 32 -Count 2 -ErrorAction SilentlyContinue)
+{
+
+
+$AVGProc = Get-WmiObject -computername $computername win32_processor | 
+Measure-Object -property LoadPercentage -Average | Select Average 
+$OS = Get-WmiObject -Class win32_operatingsystem -computername $computername |
+Select-Object @{Name = "MemoryUsage"; Expression = {“{0:N2}” -f ((($_.TotalVisibleMemorySize - $_.FreePhysicalMemory)*100)/ $_.TotalVisibleMemorySize) }} 
+$vol = Get-WmiObject -Class win32_Volume -ComputerName $computername -Filter "DriveLetter = 'C:'" |
+Select-object @{Name = "C PercentFree"; Expression = {“{0:N2}” -f  (($_.FreeSpace / $_.Capacity)*100) } } 
+$object = gwmi win32_operatingsystem -ComputerName $computername 
+$Uptime= $object.ConvertToDateTime($object.LastBootUpTime)
+
+
+$name= $computername+$domain
+$RegistrationState= Get-BrokerMachine -dnsname $name -AdminAddress $DDCServer | Select-Object registrationstate,catalogname
+$MachineType= Get-BrokerMachine -dnsname $name -AdminAddress $DDCServer | Select-Object catalogname
+
+ $Result1 += [PSCustomObject] @{ 
+        ServerName = "$computername"
+        CPULoad = "$($AVGProc.Average)%"
+        MemLoad = "$($OS.MemoryUsage)%"
+        CDrive = "$($vol.'C PercentFree')%"
+		UpTime = "$($Uptime)"
+
+        RegistrationState= $RegistrationState.registrationstate
+        MachineType= $MachineType.catalogname
+                      }
+
+}
+
+else
+{
+
+$name= $computername+$domain
+$RegistrationState= Get-BrokerMachine -dnsname $name -AdminAddress $DDCServer | Select-Object registrationstate
+$MachineType= Get-BrokerMachine -dnsname $name -AdminAddress $DDCServer | Select-Object catalogname
+
+$Result4 += [PSCustomObject] @{ 
+        ServerName = "$computername"
+        RegistrationState= $RegistrationState.registrationstate
+        MachineType= $MachineType.catalogname}
+
+}
+	
+    $Outputreport1 = "<HTML><TITLE> XenApp-Servers / Xen-Desktops </TITLE>
+                     <BODY background-color:peachpuff>
+                     <font color =""#99000"" face=""Microsoft Tai le"">
+                     <H2> XenApp-Servers / Xen-Desktops </H2></font>
+                     <Table border=1 cellpadding=0 cellspacing=0>
+					   <TR bgcolor=gray align=center>
+                       <TD><B> Server Name </B></TD>
+                       <TD><B> Avrg.CPU Utilization </B></TD>
+                       <TD><B> Memory Utilization </B></TD>
+                       <TD><B> C Drive Free </B></TD>
+                       <TD><B>  UPTime  </B></TD>
+                       <TD><B> RegistrationState </B></TD>
+                        <TD><B> MachineType </B></TD>
+                       <TD><B> Remarks </B></TD></TR>"	   
+					  			   
+					 
+   Foreach($Entry1 in $Result1) 
+            { 
+
+
+             
+          
+          $Outputreport1 += "<TD>$($Entry1.Servername)</TD><TD align=center>$($Entry1.CPULoad)</TD><TD align=center>$($Entry1.MemLoad)</TD><TD align=center>$($Entry1.Cdrive)</TD><TD align=center>$($Entry1.UpTime)</TD><TD align=center>$($Entry1.RegistrationState)</TD><TD align=center>$($Entry1.MachineType)</TD><TD align=center>$()</TD></TR>" 
+        }
+
+ Foreach($Entry4 in $Result4) 
+            { 
+         
+          $Outputreport1 += "<TD>$($Entry4.Servername)</TD><TD align=center>$("N/A")</TD><TD align=center>$("N/A")</TD><TD align=center>$("N/A")</TD><TD align=center>$("N/A")</TD><TD align=center>$($Entry4.RegistrationState)</TD><TD align=center>$($Entry1.MachineType)</TD><TD align=center>$("Not Reachable")</TD></TR>" 
+        }
+
+
+        
+     $Outputreport1 += "</Table></BODY></HTML>" 
+
+     
+        } 
+ 
+#### Start- Citrix License Usage######
+$CitrixLicenseServer = $LicenseServer
+$ShowUnusedLicenses = $true
+
+$UsageAlertThreshold = 0
+$LicenseData = Get-WmiObject -class “Citrix_GT_License_Pool” -namespace “ROOT\CitrixLicensing” -ComputerName $CitrixLicenseServer
+$CurrentLicenseInfo = “” | Select-Object License, Count, Usage, pctUsed, Alert
+$LicenseData | select-object pld -unique | foreach {
+$CurrentLicenseInfo.License = $_.pld
+$CurrentLicenseInfo.Count = ($LicenseData | where-object {$_.PLD -eq $CurrentLicenseInfo.License } | measure-object -property Count -sum).sum
+$CurrentLicenseInfo.Usage = ($LicenseData | where-object {$_.PLD -eq $CurrentLicenseInfo.License } | measure-object -property InUseCount -sum).sum
+$CurrentLicenseInfo.pctUsed = [Math]::Round($CurrentLicenseInfo.Usage / $CurrentLicenseInfo.Count * 100,2)
+$CurrentLicenseInfo.Alert = ($CurrentLicenseInfo.pctUsed -gt $UsageAlertThreshold)
+$Result2 += [PSCustomObject] @{ 
+        License = "$($CurrentLicenseInfo.license)"
+        Count = "$($CurrentLicenseInfo.Count)"
+        Usage = "$($CurrentLicenseInfo.Usage)"
+        PctUsed = "$($CurrentLicenseInfo.pctUsed)"
+	Alert = "$($CurrentLicenseInfo.Alert)"
+
+
+}
+
+$Outputreport2 = "<HTML><TITLE> Citrix License Usage </TITLE>
+                     <BODY background-color:peachpuff>
+                     <font color =""#99000"" face=""Microsoft Tai le"">
+                     <H2> Citrix License Usage  </H2></font>
+                     <Table border=1 cellpadding=0 cellspacing=0>
+			<TR bgcolor=gray align=center>
+                       <TD><B>  License  </B></TD>
+                       <TD><B>  Count  </B></TD>
+                       <TD><B>  Usage  </B></TD>
+                       <TD><B>  % Used  </B></TD>
+			<TD><B>  Alert  </B></TD></TR>"	    
+					  				   
+					 
+   Foreach($Entry2 in $Result2) 
+    
+        { 
+         		 $Outputreport2 += "<TD>$($Entry2.License)</TD><TD align=center>$($Entry2.Count)</TD><TD align=center>$($Entry2.Usage)</TD><TD align=center>$($Entry2.PctUsed)</TD><TD align=center>$($Entry2.Alert)</TD></TR>" 
+        }
+     $Outputreport2 += "</Table></BODY></HTML>"
+}
+#### End- Citrix License Usage######
+
+#### Start- Citrix License Usage######
+ 
+ForEach($Node in $InfraServers) 
+{
+
+if(Test-Connection -ComputerName $Node -BufferSize 32 -Count 2 -ErrorAction SilentlyContinue)
+{
+
+
+$AVGProc = Get-WmiObject -computername $Node win32_processor | 
+Measure-Object -property LoadPercentage -Average | Select Average 
+$OS = Get-WmiObject -Class win32_operatingsystem -computername $Node |
+Select-Object @{Name = "MemoryUsage"; Expression = {“{0:N2}” -f ((($_.TotalVisibleMemorySize - $_.FreePhysicalMemory)*100)/ $_.TotalVisibleMemorySize) }} 
+$vol = Get-WmiObject -Class win32_Volume -ComputerName $Node -Filter "DriveLetter = 'C:'" |
+Select-object @{Name = "C PercentFree"; Expression = {“{0:N2}” -f  (($_.FreeSpace / $_.Capacity)*100) } } 
+$object = gwmi win32_operatingsystem -ComputerName $Node 
+$Uptime= $object.ConvertToDateTime($object.LastBootUpTime)
+
+
+ $Result3 += [PSCustomObject] @{ 
+        ServerName = "$Node"
+        CPULoad = "$($AVGProc.Average)%"
+        MemLoad = "$($OS.MemoryUsage)%"
+        CDrive = "$($vol.'C PercentFree')%"
+		UpTime = "$($Uptime)"
+       
+                      }
+
+}
+
+else
+{
+
+$Result5 += [PSCustomObject] @{ 
+        ServerName = "$Node"
+        }
+
+}
+	
+    $Outputreport3 = "<HTML><TITLE> Citrix Infra Servers </TITLE>
+                     <BODY background-color:peachpuff>
+                     <font color =""#99000"" face=""Microsoft Tai le"">
+                     <H2> Citrix Infra Servers   </H2></font>
+                     <Table border=1 cellpadding=0 cellspacing=0>
+					   <TR bgcolor=gray align=center>
+                       <TD><B> Server Name </B></TD>
+                       <TD><B> Avrg.CPU Utilization </B></TD>
+                       <TD><B> Memory Utilization </B></TD>
+                       <TD><B> C Drive Free </B></TD>
+                       <TD><B>  UPTime  </B></TD></TR>"
+                       	   
+					  			   
+					 
+   Foreach($Entry3 in $Result3) 
+            { 
+
+
+          
+          $Outputreport3 += "<TD>$($Entry3.Servername)</TD><TD align=center>$($Entry3.CPULoad)</TD><TD align=center>$($Entry3.MemLoad)</TD><TD align=center>$($Entry3.Cdrive)</TD><TD align=center>$($Entry3.UpTime)</TD></TD><TD align=center>$()</TD></TR>" 
+        }
+Foreach($Entry5 in $Result5) 
+            { 
+         
+          $Outputreport3 += "<TD>$($Entry5.Servername)</TD><TD align=center>$("N/A")</TD><TD align=center>$("N/A")</TD><TD align=center>$("N/A")</TD><TD align=center>$("N/A")</TD><TD align=center>$("Not Reachable")</TD></TR>" 
+        }
+ 
+
+     $Outputreport3 += "</Table></BODY></HTML>" 
+
+     
+        } 
+		
+		
+		
+################## End - Citrix Infra Server Report#################
+ 
+ 
+ 
+  
+ $Outputreport = $Outputreport1 + $Outputreport2 + $Outputreport3
+  
+ 
+ 
+$Outputreport | out-file -filepath $Path\DailyCitrixReport.html 
+Invoke-Expression $Path\DailyCitrixReport.html 
+
+
+
+$body = Get-Content $Path\DailyCitrixReport.html -Raw
+Send-MailMessage @smtpsettings -Body $body -BodyAsHtml -Encoding ([System.Text.Encoding]::UTF8)
+
+
+#Send email functionality from below line, use it if you want   
+<#$smtpServer = "yoursmtpserver.com"
+$smtpFrom = "fromemailaddress@test.com"
+$smtpTo = "receipentaddress@test.com"
+$messageSubject = "Servers Health report"
+$message = New-Object System.Net.Mail.MailMessage $smtpfrom, $smtpto
+$message.Subject = $messageSubject
+$message.IsBodyHTML = $true
+$message.Body = "<head><pre>$style</pre></head>"
+$message.Body += Get-Content C:\ctx\test.htm
+$smtp = New-Object Net.Mail.SmtpClient($smtpServer)
+$smtp.Send($message)#>
