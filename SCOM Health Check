@@ -1,0 +1,136 @@
+#Importing the SCOM PowerShell module
+Import-module OperationsManager
+#Connect to localhost when running on the management server
+$connect = New-SCOMManagementGroupConnection –ComputerName localhost
+
+# Or enable the two lines below and of course enter the FQDN of the management server in the first line.
+#$MS = "enter.fqdn.name.here"
+#$connect = New-SCOMManagementGroupConnection –ComputerName $MS
+
+# Create header for HTML Report
+$Head = "<style>"
+$Head +="BODY{background-color:#CCCCCC;font-family:Verdana,sans-serif; font-size: x-small;}"
+$Head +="TABLE{border-width: 1px;border-style: solid;border-color: black;border-collapse: collapse; width: 100%;}"
+$Head +="TH{border-width: 1px;padding: 0px;border-style: solid;border-color: black;background-color:green;color:white;padding: 5px; font-weight: bold;text-align:left;}"
+$Head +="TD{border-width: 1px;padding: 0px;border-style: solid;border-color: black;background-color:#F0F0F0; padding: 2px;}"
+$Head +="</style>"
+
+# Get status of Management Server Health and input them into report
+write-host "Getting Management Health Server States" -ForegroundColor Yellow 
+$ReportOutput = "To enable HTML view, click on `"This message was converted to plain text.`" and select `"Display as HTML`""
+$ReportOutput += "<p><H2>Management Servers not in Healthy States</H2></p>"
+
+$Count = Get-SCOMManagementServer | where {$_.HealthState -ne "Success"} | Measure-Object
+
+if($Count.Count -gt 0) { 
+ $ReportOutput += Get-SCOMManagementServer | where {$_.HealthState -ne "Success"} | select Name,HealthState,IsRootManagementServer,IsGateway | ConvertTo-HTML -fragment
+} else { 
+ $ReportOutput += "<p>All management servers are in healthy state.</p>"
+} 
+
+
+# Get Agent Health Status and put none healthy ones into report
+write-host "Getting Agent Health Status" -ForegroundColor Yellow
+$MG = get-scommanagementgroup 
+$criteria = new-object Microsoft.EnterpriseManagement.Monitoring.MonitoringObjectGenericCriteria("InMaintenanceMode=1")
+$objectsInMM = $MG.GetPartialMonitoringObjects($criteria.Criteria)
+$ObjectsFound = $objectsInMM | select-object DisplayName, @{name="Object Type";expression={foreach-object {$_.GetLeastDerivedNonAbstractMonitoringClass().DisplayName}}},@{name="StartTime";expression={foreach-object {$_.GetMaintenanceWindow().StartTime.ToLocalTime()}}},@{name="EndTime";expression={foreach-object {$_.GetMaintenanceWindow().ScheduledEndTime.ToLocalTime()}}},@{name="Path";expression={foreach-object {$_.Path}}},@{name="User";expression={foreach-object {$_.GetMaintenanceWindow().User}}},@{name="Reason";expression={foreach-object {$_.GetMaintenanceWindow().Reason}}},@{name="Comment";expression={foreach-object {$_.GetMaintenanceWindow().Comment}}}
+
+$ReportOutput += "<h2>Agents where Health State is not Green</h2>"
+#$ReportOutput += Get-Agent | where {$_.HealthState -ne "Success"} | Sort-Object HealthState -descending | select Name,HealthState | ConvertTo-HTML -fragment
+
+$Agents = Get-scomAgent | where {$_.HealthState -ne "Success"} | Sort-Object HealthState -descending | select Name,HealthState
+
+$AgentTable = New-Object System.Data.DataTable "$AvailableTable"
+$AgentTable.Columns.Add((New-Object System.Data.DataColumn Name,([string])))
+$AgentTable.Columns.Add((New-Object System.Data.DataColumn HealthState,([string])))
+$AgentTable.Columns.Add((New-Object System.Data.DataColumn MM,([string])))
+$AgentTable.Columns.Add((New-Object System.Data.DataColumn MMUser,([string])))
+$AgentTable.Columns.Add((New-Object System.Data.DataColumn MMReason,([string])))
+$AgentTable.Columns.Add((New-Object System.Data.DataColumn MMComment,([string])))
+$AgentTable.Columns.Add((New-Object System.Data.DataColumn MMEndTime,([string])))
+
+foreach ($Agent in $Agents)
+    {
+        $FoundObject = $null
+	$MaintenanceModeUser = $null
+	$MaintenanceModeComment = $null
+	$MaintenanceModeReason = $null
+	$MaintenanceModeEndTime = $null
+        $FoundObject = 0
+        $FoundObject = $objectsFound | ? {$_.DisplayName -match $Agent.Name -or $_.Path -match $Agent.Name}
+        if ($FoundObject -eq $null)
+            {
+                $MaintenanceMode = "No"
+                $MaintenanceObjectCount = 0
+            }
+        else
+            {
+                $MaintenanceMode = "Yes"
+                $MaintenanceObjectCount = $FoundObject.Count
+		$MaintenanceModeUser = (($FoundObject | Select User)[0]).User
+		$MaintenanceModeReason = (($FoundObject | Select Reason)[0]).Reason
+		$MaintenanceModeComment = (($FoundObject | Select Comment)[0]).Comment
+		$MaintenanceModeEndTime = ((($FoundObject | Select EndTime)[0]).EndTime).ToString()
+            }
+        $NewRow = $AgentTable.NewRow()
+        $NewRow.Name = ($Agent.Name).ToString()
+        $NewRow.HealthState = ($Agent.HealthState).ToString()
+        $NewRow.MM = $MaintenanceMode
+	    $NewRow.MMUser = $MaintenanceModeUser
+        $NewRow.MMReason = $MaintenanceModeReason
+        $NewRow.MMComment = $MaintenanceModeComment
+        $NewRow.MMEndTime = $MaintenanceModeEndTime
+        $AgentTable.Rows.Add($NewRow)
+    }
+    
+$ReportOutput += $AgentTable | Sort-Object MM | Select Name, HealthState, MM, MMUser, MMReason, MMComment, MMEndTime | ConvertTo-HTML -fragment
+
+# Get Alerts specific to Management Servers and put them in the report
+write-host "Getting Management Server Alerts" -ForegroundColor Yellow 
+$ReportOutput += "<h2>Management Server Alerts</h2>"
+$ManagementServers = Get-SCOMManagementServer
+foreach ($ManagementServer in $ManagementServers){ 
+ $ReportOutput += "<h3>Alerts on " + $ManagementServer.ComputerName + "</h3>"
+ $ReportOutput += get-SCOMalert -Criteria ("NetbiosComputerName = '" + $ManagementServer.ComputerName + "'") | where {$_.ResolutionState -ne '255' -and $_.MonitoringObjectFullName -Match 'Microsoft.SystemCenter'} | select TimeRaised,Name,Description,Severity | ConvertTo-HTML -fragment
+}
+
+# Get all alerts
+write-host "Getting all alerts" -ForegroundColor Yellow
+$Alerts = Get-SCOMAlert -Criteria 'ResolutionState < "255"'
+
+# Get alerts for last 24 hours
+write-host "Getting alerts for last 24 hours" -ForegroundColor Yellow
+$ReportOutput += "<h2>Top 10 Alerts With Same Name - 24 hours</h2>"
+$ReportOutput += $Alerts | where {$_.LastModified -le (Get-Date).addhours(-24)} | Group-Object Name | Sort-object Count -desc | select-Object -first 10 Count, Name | ConvertTo-HTML -fragment
+
+$ReportOutput += "<h2>Top 10 Repeating Alerts - 24 hours</h2>"
+$ReportOutput += $Alerts | where {$_.LastModified -le (Get-Date).addhours(-24)} | Sort-Object -desc RepeatCount | select-Object -first 10 RepeatCount, Name, MonitoringObjectPath, Description | ConvertTo-HTML -fragment
+
+# Get the Top 10 Unresolved alerts still in console and put them into report
+write-host "Getting Top 10 Unresolved Alerts With Same Name - All Time" -ForegroundColor Yellow 
+$ReportOutput += "<h2>Top 10 Unresolved Alerts</h2>"
+$ReportOutput += $Alerts  | Group-Object Name | Sort-object Count -desc | select-Object -first 10 Count, Name | ConvertTo-HTML -fragment
+
+# Get the Top 10 Repeating Alerts and put them into report
+write-host "Getting Top 10 Repeating Alerts - All Time" -ForegroundColor Yellow 
+$ReportOutput += "<h2>Top 10 Repeating Alerts</h2>"
+$ReportOutput += $Alerts | Sort -desc RepeatCount | select-object –first 10 Name, RepeatCount, MonitoringObjectPath, Description | ConvertTo-HTML -fragment
+
+# Get list of agents still in Pending State and put them into report
+write-host "Getting Agents in Pending State" -ForegroundColor Yellow 
+$ReportOutput += "<h2>Agents in Pending State</h2>"
+$ReportOutput += Get-SCOMPendingManagement | sort AgentPendingActionType | select AgentName,ManagementServerName,AgentPendingActionType | ConvertTo-HTML -fragment
+
+# List Management Packs updated in last 24 hours
+write-host "Getting List Management Packs updated in last 24 hours" -ForegroundColor Yellow
+$ReportOutput += "<h2>Management Packs Updated</h2>"
+$MPDates = (Get-Date).adddays(-1)
+$ReportOutput += Get-SCManagementPack | Where {$_.LastModified -gt $MPDates} | Select-Object DisplayName, LastModified | Sort LastModified | ConvertTo-Html -fragment
+
+# Take all $ReportOutput and combine it with $Body to create completed HTML output
+$Body = ConvertTo-HTML -head $Head -body "$ReportOutput"
+
+$Body | Out-File C:\SCOM_Health_Check\HealthCheck-11-14-2012.html
+
+
