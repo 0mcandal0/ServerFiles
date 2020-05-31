@@ -131,6 +131,6 @@ $ReportOutput += Get-SCManagementPack | Where {$_.LastModified -gt $MPDates} | S
 # Take all $ReportOutput and combine it with $Body to create completed HTML output
 $Body = ConvertTo-HTML -head $Head -body "$ReportOutput"
 
-$Body | Out-File C:\SCOM_Health_Check\HealthCheck-11-14-2012.html
+$Body | Out-File C:\SCOM_Health_Check\SCOMHEALTHTODAY.html
 
 
