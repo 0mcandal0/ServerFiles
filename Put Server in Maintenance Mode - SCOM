@@ -1,0 +1,69 @@
+$InstanceClass= Get-SCOMClass -Name Microsoft.Windows.Computer
+$ErrorActionPreference = 'SilentlyContinue'
+$Servers = Get-Content "C:\Scom\RVNServers.txt"
+$ts = New-TimeSpan  -Hours 01 -Minutes 01
+$Time = ((Get-Date) + $ts)
+$Array = @()
+ 
+Foreach($server in $Servers){
+    $Server = $Server.trim()
+    Write-Host "Processing $Server" -ForegroundColor Green
+ 
+    $Mm = $Start = $End = $MMUser = $Reason = $MgmtGroup = $Comment = $Object = $FQDN = $Instance = $null
+     
+    $FQDN = ([System.Net.Dns]::GetHostByName(("$Server")))
+    If(!$FQDN){
+        Write-Warning "$Server does not exist"
+    }
+    Else{
+        $Hostname = ($FQDN.HostName | Out-String).Trim()
+        $Instance = Get-SCOMClassInstance -Class $InstanceClass | Where-Object {$_.DisplayName -match $Server}
+     
+        If(!$Instance){
+            Write-Warning "$Server not found"
+        }
+        Else{
+            Try{
+                Start-SCOMMaintenanceMode -ErrorAction Stop -Instance $Instance -EndTime $Time -Comment "ESO8maintenance" -Reason "SecurityIssue"
+                $Mm = Get-SCOMMaintenanceMode -ErrorAction Stop -Instance $Instance | Select-Object ManagementGroup,User,StartTime,ScheduledEndTime,Reason,Comments
+                 
+                $Start = $MM.StartTime
+                $End = $MM.ScheduledEndTime
+                $MMUser = $MM.User
+                $Reason = $MM.Reason
+                $MgmtGroup = $MM.ManagementGroup
+                $Comment = $MM.Comments
+            }
+            Catch{
+                $_.Exception.Message
+                 
+                $Start = "(null)"
+                $End = "(null)"
+                $MMUser = "(null)"
+                $Reason = "(null)"
+                $MgmtGroup = "(null)"
+                $Comment = "(null)"
+            }
+ 
+            $Object = New-Object PSObject -Property ([ordered]@{ 
+  
+                Server                  = $Hostname
+                StartTime               = $Start
+                ScheduledEndTime        = $End
+                User                    = $MMUser
+                Reason                  = $Reason
+                ManagementGroup         = $MgmtGroup
+                Comments                = $Comment
+  
+            })
+     
+            $Array += $Object 
+            #$Object 
+ 
+            Remove-Variable Start,End,MMUser,Reason,MgmtGroup,Comment,MM,Object,FQDN,hostname,instance
+        }
+    }
+} #Foreach end
+ 
+#Export to CSV
+$Array |  Export-Csv -Path C:\Scom\MAM.csv -NoTypeInformation
