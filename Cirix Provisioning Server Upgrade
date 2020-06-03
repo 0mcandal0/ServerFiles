@@ -1,0 +1,13 @@
+
+As discussed below is the Citrix Provisioning Server in place upgrade Plan from 7.15 CU2 to 7.15 CU4:
+
+1.	After taking the checkpoint of provisioning server and  backup  of provisioning database. In Citrix Provisioning Farm remove the load balance:
+2.	Check the WriteCache folders on dklynctxpvs2 to make sure they are empty. If any Target Device is caching on Server, then those Target Devices will not failover to another Citrix Provisioning server.
+3.	Get temporary sysadmin permissions to the SQL Server – DKLYNSQLNOD001 which is hosting the Citrix Provisioning database.
+4.	Go to the installation Media\\XYZ\ISO$\ProvisioningServices715_15.iso and Run the Citrix Provisioning Configuration Wizard and follow the onscreen instruction let it upgrade the database and restart the services. 
+5.	Upgrade the PVS Console. Enable the load balancing of vDisk.
+6.	If no issue persisting then upgrading the remaining Citrix Provisioning server by following above steps.
+
+Target Device Softwares can now be upgraded in Master Image and create vDisk for streaming to the XenApp Servers.
+
+
