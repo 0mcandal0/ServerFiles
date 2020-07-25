@@ -1,0 +1,45 @@
+param(
+[Parameter(Position=0)]
+[DateTime]$StartDate,
+[DateTime]$EndDate
+)
+
+$DistGroups = Get-DistributionGroup -ResultSize Unlimited
+$EndDate = Get-Date
+$StartDate = $EndDate.AddDays(-10)
+$Output=[System.Collections.ArrayList]@()
+$Output.Clear()
+
+foreach($DL in $DistGroups){
+    $Val=Get-Messagetrace -RecipientAddress $DL.PrimarySMTPAddress -StartDate $StartDate -enddate $EndDate
+    $Mem = (Get-DistributionGroupMember -Identity $DL.PrimarySMTPAddress).count
+    $LastEmailReceivedOn = (Get-MessageTrace -RecipientAddress $DL.PrimarySMTPAddress|Select Received -last 1).Received
+
+        If($Val.Count-ne0)
+        {
+            $Property=[pscustomobject][ordered]@{
+                Status="Active"
+                Owner=$dl.ManagedBy
+                GroupName=$DL.DisplayName
+                EmailAddress=$DL.PrimarySMTPAddress
+                EmailCount=$Val.Count
+                #Member=$Mem
+                LastEmailReceivedOn=$LastEmailReceivedOn
+            }
+            $Output.Add($Property)
+        }
+        else
+        {
+            $Property=[pscustomobject][ordered]@{
+                Status="InActive"
+                Owner=$dl.ManagedBy
+                GroupName=$DL.DisplayName
+                EmailAddress=$DL.PrimarySMTPAddress
+                EmailCount=$Val.Count
+                #Member=$Mem
+                LastEmailReceivedOn=$LastEmailReceivedOn
+            }
+            $Output.Add($Property)
+        }
+}
+$Output|sort Status|ft -AutoSize
