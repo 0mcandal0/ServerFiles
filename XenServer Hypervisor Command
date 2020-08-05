@@ -1,0 +1,117 @@
+xe help --all|more
+Show a list of XenServer CLI commands
+xs
+xsconsole
+Runs up the XenServer text based console
+
+xe-toolstack-restart
+Restarts the XenServer management tools
+
+ls –l
+List files in a Directory
+
+less /var/log/dmesg
+Display Boot Messages from Linux
+
+xe host-dmesg
+Xen Hypervisor Boot messages
+
+tail –f /var/log/xensource.log
+Look at xapi messages as they happen
+
+tail –f /var/log/xensource.log | grep xxx
+Look at xapi messages only for vm uuid xxx
+
+tail –f [log name] > [target filename]
+Send output to a file for analysis later
+
+cat /etc/xensource-inventory
+Display XenSource Inventory info
+
+xen-bugtool --yes
+Build a status report when xapi is down
+
+xe-backup-metadata -d –u [uuid of SR]
+Back up Pool metadata for all VMs
+
+tcpdump –i [inf] –vvv –w [filename]
+Get a Packet trace from [inf]. E.g. Inf=eth0, xenbr0, vif2.0 etc.
+
+top
+List the top processes running in Dom0
+
+xentop
+List top Xen processes
+
+mpstat 5
+Processor stats in Dom0
+
+vmstat 2
+Virtual memory in Dom0
+
+netstat –s
+Networking statistics
+
+iostat -d 2 6
+Storage traffic stats
+
+list_domains
+Lists VMs that are running
+
+
+fdisk –l
+List the disk partitions
+
+hdparm –t /dev/sda3
+Device read times for sda3 (normally local SR)
+
+pvs
+Show local and remote LVHD SRs
+
+ll /dev/disks/by-id
+Look at disk partitions
+
+lvs
+List logical volumes (virtual disks)
+
+vgs
+List LVM volume groups
+
+cd /var/run/sr-mount
+Look at NFS SRs
+
+df -h
+Shows how much disk space you have left
+
+dd if=/dev/sdb of=/dev/null iflag=direct bs=1M count=512
+Read data performance from sdb.
+
+dd if=/dev/zero of=/dev/sdb oflag=direct bs=1M count=4096
+Write performance on sdb. * Don’t use on disks with VMs on them!
+
+ifconfig
+Show info on NICs, virtual switches and vNICs
+q
+brctl show
+Show info on virtual switches
+
+ethtool eth0
+Info for NIC eth0
+
+mii-tool
+Info on NIC bonding
+
+iscsiadm -m discovery --type sendtargets --port 192.168.250.14
+Discover iSCSmiiI targets available to this server
+
+iscsiadm –m session
+Open iscsi sessions
+
+history
+Lists the history of commands you’ve used
+
+!136
+Executes command #136 in the history
+
+history -w history-list.txt
+Writes the history info to a text file
