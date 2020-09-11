@@ -1,0 +1,169 @@
+    #The temporary Generation 2 clone base virtual machine name
+    $vmName = "citrixappserverxxx"
+	
+    #The well known PVS Virtual System Identifier for the Streaming synthetic NIC 
+    $VSIGuid = "{c40165e3-3bce-43f6-81ec-8733731ddcba}"
+
+    #Retrieve the Hyper-V Management Service, The ComputerSystem class for the VM and the VM’s SettingData class. 
+    $Msvm_VirtualSystemManagementService = Get-WmiObject -Namespace root\virtualization\v2 -Class Msvm_VirtualSystemManagementService 
+
+    $Msvm_ComputerSystem = Get-WmiObject -Namespace root\virtualization\v2 -Class Msvm_ComputerSystem -Filter "ElementName='$vmName'" 
+    $Msvm_ComputerSystem
+
+    $Msvm_VirtualSystemSettingData = ($Msvm_ComputerSystem.GetRelated("Msvm_VirtualSystemSettingData", "Msvm_SettingsDefineState", $null, $null, "SettingData", "ManagedElement", $false, $null) | % {$_}) 
+
+    #Retrieve the default (primordial) resource pool for Synthetic Ethernet Port’s 
+    $Msvm_ResourcePool = Get-WmiObject -Namespace root\virtualization\v2 -Class Msvm_ResourcePool -Filter "ResourceSubType = 'Microsoft:Hyper-V:Synthetic Ethernet Port' and Primordial = True" 
+
+    #Retrieve the AllocationCapabilities class for the Resource Pool 
+    $Msvm_AllocationCapabilities = ($Msvm_ResourcePool.GetRelated("Msvm_AllocationCapabilities", "Msvm_ElementCapabilities", $null, $null, $null, $null, $false, $null) | % {$_}) 
+
+    #Query the relationships on the AllocationCapabilities class and find the default class (ValueRole = 0) 
+    $Msvm_SettingsDefineCapabilities = ($Msvm_AllocationCapabilities.GetRelationships("Msvm_SettingsDefineCapabilities") | Where-Object {$_.ValueRole -eq "0"}) 
+
+    #The PartComponent is the Default SyntheticEthernetPortSettingData class values 
+    $Msvm_SyntheticEthernetPortSettingData = [WMI]$Msvm_SettingsDefineCapabilities.PartComponent 
+
+    #Specify a unique identifier, a friendly name and specify dynamic mac addresses 
+    $Msvm_SyntheticEthernetPortSettingData.VirtualSystemIdentifiers = $VSIGuid 
+    $Msvm_SyntheticEthernetPortSettingData.ElementName = "PVS Streaming Adapter" 
+    $Msvm_SyntheticEthernetPortSettingData.StaticMacAddress = $false 
+
+    #Add the network adapter to the VM 
+    $Msvm_VirtualSystemManagementService.AddResourceSettings($Msvm_VirtualSystemSettingData, $Msvm_SyntheticEthernetPortSettingData.GetText(1))
+# SIG # Begin signature block
+# MIIZAQYJKoZIhvcNAQcCoIIY8jCCGO4CAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
+# gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUXwceSz4aGYPPSUsWPKIhnah2
+# BnigghPeMIID7jCCA1egAwIBAgIQfpPr+3zGTlnqS5p31Ab8OzANBgkqhkiG9w0B
+# AQUFADCBizELMAkGA1UEBhMCWkExFTATBgNVBAgTDFdlc3Rlcm4gQ2FwZTEUMBIG
+# A1UEBxMLRHVyYmFudmlsbGUxDzANBgNVBAoTBlRoYXd0ZTEdMBsGA1UECxMUVGhh
+# d3RlIENlcnRpZmljYXRpb24xHzAdBgNVBAMTFlRoYXd0ZSBUaW1lc3RhbXBpbmcg
+# Q0EwHhcNMTIxMjIxMDAwMDAwWhcNMjAxMjMwMjM1OTU5WjBeMQswCQYDVQQGEwJV
+# UzEdMBsGA1UEChMUU3ltYW50ZWMgQ29ycG9yYXRpb24xMDAuBgNVBAMTJ1N5bWFu
+# dGVjIFRpbWUgU3RhbXBpbmcgU2VydmljZXMgQ0EgLSBHMjCCASIwDQYJKoZIhvcN
+# AQEBBQADggEPADCCAQoCggEBALGss0lUS5ccEgrYJXmRIlcqb9y4JsRDc2vCvy5Q
+# WvsUwnaOQwElQ7Sh4kX06Ld7w3TMIte0lAAC903tv7S3RCRrzV9FO9FEzkMScxeC
+# i2m0K8uZHqxyGyZNcR+xMd37UWECU6aq9UksBXhFpS+JzueZ5/6M4lc/PcaS3Er4
+# ezPkeQr78HWIQZz/xQNRmarXbJ+TaYdlKYOFwmAUxMjJOxTawIHwHw103pIiq8r3
+# +3R8J+b3Sht/p8OeLa6K6qbmqicWfWH3mHERvOJQoUvlXfrlDqcsn6plINPYlujI
+# fKVOSET/GeJEB5IL12iEgF1qeGRFzWBGflTBE3zFefHJwXECAwEAAaOB+jCB9zAd
+# BgNVHQ4EFgQUX5r1blzMzHSa1N197z/b7EyALt0wMgYIKwYBBQUHAQEEJjAkMCIG
+# CCsGAQUFBzABhhZodHRwOi8vb2NzcC50aGF3dGUuY29tMBIGA1UdEwEB/wQIMAYB
+# Af8CAQAwPwYDVR0fBDgwNjA0oDKgMIYuaHR0cDovL2NybC50aGF3dGUuY29tL1Ro
+# YXd0ZVRpbWVzdGFtcGluZ0NBLmNybDATBgNVHSUEDDAKBggrBgEFBQcDCDAOBgNV
+# HQ8BAf8EBAMCAQYwKAYDVR0RBCEwH6QdMBsxGTAXBgNVBAMTEFRpbWVTdGFtcC0y
+# MDQ4LTEwDQYJKoZIhvcNAQEFBQADgYEAAwmbj3nvf1kwqu9otfrjCR27T4IGXTdf
+# plKfFo3qHJIJRG71betYfDDo+WmNI3MLEm9Hqa45EfgqsZuwGsOO61mWAK3ODE2y
+# 0DGmCFwqevzieh1XTKhlGOl5QGIllm7HxzdqgyEIjkHq3dlXPx13SYcqFgZepjhq
+# IhKjURmDfrYwggSjMIIDi6ADAgECAhAOz/Q4yP6/NW4E2GqYGxpQMA0GCSqGSIb3
+# DQEBBQUAMF4xCzAJBgNVBAYTAlVTMR0wGwYDVQQKExRTeW1hbnRlYyBDb3Jwb3Jh
+# dGlvbjEwMC4GA1UEAxMnU3ltYW50ZWMgVGltZSBTdGFtcGluZyBTZXJ2aWNlcyBD
+# QSAtIEcyMB4XDTEyMTAxODAwMDAwMFoXDTIwMTIyOTIzNTk1OVowYjELMAkGA1UE
+# BhMCVVMxHTAbBgNVBAoTFFN5bWFudGVjIENvcnBvcmF0aW9uMTQwMgYDVQQDEytT
+# eW1hbnRlYyBUaW1lIFN0YW1waW5nIFNlcnZpY2VzIFNpZ25lciAtIEc0MIIBIjAN
+# BgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAomMLOUS4uyOnREm7Dv+h8GEKU5Ow
+# mNutLA9KxW7/hjxTVQ8VzgQ/K/2plpbZvmF5C1vJTIZ25eBDSyKV7sIrQ8Gf2Gi0
+# jkBP7oU4uRHFI/JkWPAVMm9OV6GuiKQC1yoezUvh3WPVF4kyW7BemVqonShQDhfu
+# ltthO0VRHc8SVguSR/yrrvZmPUescHLnkudfzRC5xINklBm9JYDh6NIipdC6Anqh
+# d5NbZcPuF3S8QYYq3AhMjJKMkS2ed0QfaNaodHfbDlsyi1aLM73ZY8hJnTrFxeoz
+# C9Lxoxv0i77Zs1eLO94Ep3oisiSuLsdwxb5OgyYI+wu9qU+ZCOEQKHKqzQIDAQAB
+# o4IBVzCCAVMwDAYDVR0TAQH/BAIwADAWBgNVHSUBAf8EDDAKBggrBgEFBQcDCDAO
+# BgNVHQ8BAf8EBAMCB4AwcwYIKwYBBQUHAQEEZzBlMCoGCCsGAQUFBzABhh5odHRw
+# Oi8vdHMtb2NzcC53cy5zeW1hbnRlYy5jb20wNwYIKwYBBQUHMAKGK2h0dHA6Ly90
+# cy1haWEud3Muc3ltYW50ZWMuY29tL3Rzcy1jYS1nMi5jZXIwPAYDVR0fBDUwMzAx
+# oC+gLYYraHR0cDovL3RzLWNybC53cy5zeW1hbnRlYy5jb20vdHNzLWNhLWcyLmNy
+# bDAoBgNVHREEITAfpB0wGzEZMBcGA1UEAxMQVGltZVN0YW1wLTIwNDgtMjAdBgNV
+# HQ4EFgQURsZpow5KFB7VTNpSYxc/Xja8DeYwHwYDVR0jBBgwFoAUX5r1blzMzHSa
+# 1N197z/b7EyALt0wDQYJKoZIhvcNAQEFBQADggEBAHg7tJEqAEzwj2IwN3ijhCcH
+# bxiy3iXcoNSUA6qGTiWfmkADHN3O43nLIWgG2rYytG2/9CwmYzPkSWRtDebDZw73
+# BaQ1bHyJFsbpst+y6d0gxnEPzZV03LZc3r03H0N45ni1zSgEIKOq8UvEiCmRDoDR
+# EfzdXHZuT14ORUZBbg2w6jiasTraCXEQ/Bx5tIB7rGn0/Zy2DBYr8X9bCT2bW+IW
+# yhOBbQAuOA2oKY8s4bL0WqkBrxWcLC9JG9siu8P+eJRRw4axgohd8D20UaF5Mysu
+# e7ncIAkTcetqGVvP6KUwVyyJST+5z3/Jvz4iaGNTmr1pdKzFHTx/kuDDvBzYBHUw
+# ggUzMIIEG6ADAgECAhBUdiNcNFTTm3aCoYc1sNh7MA0GCSqGSIb3DQEBBQUAMIG0
+# MQswCQYDVQQGEwJVUzEXMBUGA1UEChMOVmVyaVNpZ24sIEluYy4xHzAdBgNVBAsT
+# FlZlcmlTaWduIFRydXN0IE5ldHdvcmsxOzA5BgNVBAsTMlRlcm1zIG9mIHVzZSBh
+# dCBodHRwczovL3d3dy52ZXJpc2lnbi5jb20vcnBhIChjKTEwMS4wLAYDVQQDEyVW
+# ZXJpU2lnbiBDbGFzcyAzIENvZGUgU2lnbmluZyAyMDEwIENBMB4XDTE1MDgxMjAw
+# MDAwMFoXDTE2MTExMDIzNTk1OVowgY8xCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpD
+# YWxpZm9ybmlhMRQwEgYDVQQHEwtTYW50YSBDbGFyYTEdMBsGA1UEChQUQ2l0cml4
+# IFN5c3RlbXMsIEluYy4xFzAVBgNVBAsUDlhlbkFwcChTZXJ2ZXIpMR0wGwYDVQQD
+# FBRDaXRyaXggU3lzdGVtcywgSW5jLjCCASIwDQYJKoZIhvcNAQEBBQADggEPADCC
+# AQoCggEBALaYYtUka1pQP29ASToKL6xncbBvVdXyfSy55d3JueSBqHmbesy989ZU
+# wt1gLN74G/LebllMfb1tQiokzx8D228ufpfKnQjffX5JtzisU3b4DCdQ+n70nHXn
+# YILulBa8i4NqGB4omneaFjkUEN7lmGavzGDoQRoh6OPJNf/R4dC7QaSpRu0OzFR7
+# 9se/8I9uFlxWU839d2smhLVX0cpboHN2QGUWLLBnW1Y1xGzKsX7ibBzTVH0eJrXs
+# EZNb0hijRH2TODDLjj8PK0Hgy9IOWC0/CPSAPSyvbMYffVvIcWAGSADwpkzaf1P5
+# e1T1esDEsejRsi8hYwanP4fzdV3+jrcCAwEAAaOCAWIwggFeMAkGA1UdEwQCMAAw
+# DgYDVR0PAQH/BAQDAgeAMCsGA1UdHwQkMCIwIKAeoByGGmh0dHA6Ly9zZi5zeW1j
+# Yi5jb20vc2YuY3JsMGYGA1UdIARfMF0wWwYLYIZIAYb4RQEHFwMwTDAjBggrBgEF
+# BQcCARYXaHR0cHM6Ly9kLnN5bWNiLmNvbS9jcHMwJQYIKwYBBQUHAgIwGQwXaHR0
+# cHM6Ly9kLnN5bWNiLmNvbS9ycGEwEwYDVR0lBAwwCgYIKwYBBQUHAwMwVwYIKwYB
+# BQUHAQEESzBJMB8GCCsGAQUFBzABhhNodHRwOi8vc2Yuc3ltY2QuY29tMCYGCCsG
+# AQUFBzAChhpodHRwOi8vc2Yuc3ltY2IuY29tL3NmLmNydDAfBgNVHSMEGDAWgBTP
+# manqeyb0S8mOj9fwBSbv49KnnTAdBgNVHQ4EFgQUCVajlFKvm1ONz+qjFhkv33uc
+# whMwDQYJKoZIhvcNAQEFBQADggEBAC+Qb4Kq0lemG8k49KXHNQ7SwK6q8ttZZ4Cc
+# rSvMrB2g2UTHXapsEXUTezxpLJFOASDfi1YoJX6W5BKWLOL2IoInNIrXMe47GXpA
+# HNIB2eYVyq+3E8aObKemwCa4KQlqy0CwXPRy69zraqd4mKJd4u5Mt+WuDgiOW8qI
+# 4mli7n6VybofuCsCreC0MitskqOf1nZXXTmiQPMJ3zb8gQzk52O+e54fU/YJvb6B
+# 5WU2RoBF+c9GhmpudGJ8IVbFFNrcSQR3Stzsr53Y6sGLM+RRu/NNY9CnQxZTNqBz
+# k4nS6ydOVdl1sGwr777gnPZbwA9X7SDoZXyF6JaEePmjbj9Cg0AwggYKMIIE8qAD
+# AgECAhBSAOWqJVb8GobtlsnUSzPHMA0GCSqGSIb3DQEBBQUAMIHKMQswCQYDVQQG
+# EwJVUzEXMBUGA1UEChMOVmVyaVNpZ24sIEluYy4xHzAdBgNVBAsTFlZlcmlTaWdu
+# IFRydXN0IE5ldHdvcmsxOjA4BgNVBAsTMShjKSAyMDA2IFZlcmlTaWduLCBJbmMu
+# IC0gRm9yIGF1dGhvcml6ZWQgdXNlIG9ubHkxRTBDBgNVBAMTPFZlcmlTaWduIENs
+# YXNzIDMgUHVibGljIFByaW1hcnkgQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkgLSBH
+# NTAeFw0xMDAyMDgwMDAwMDBaFw0yMDAyMDcyMzU5NTlaMIG0MQswCQYDVQQGEwJV
+# UzEXMBUGA1UEChMOVmVyaVNpZ24sIEluYy4xHzAdBgNVBAsTFlZlcmlTaWduIFRy
+# dXN0IE5ldHdvcmsxOzA5BgNVBAsTMlRlcm1zIG9mIHVzZSBhdCBodHRwczovL3d3
+# dy52ZXJpc2lnbi5jb20vcnBhIChjKTEwMS4wLAYDVQQDEyVWZXJpU2lnbiBDbGFz
+# cyAzIENvZGUgU2lnbmluZyAyMDEwIENBMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A
+# MIIBCgKCAQEA9SNLXqXXirsy6dRX9+/kxyZ+rRmY/qidfZT2NmsQ13WBMH8EaH/L
+# K3UezR0IjN9plKc3o5x7gOCZ4e43TV/OOxTuhtTQ9Sc1vCULOKeMY50Xowilq7D7
+# zWpigkzVIdob2fHjhDuKKk+FW5ABT8mndhB/JwN8vq5+fcHd+QW8G0icaefApDw8
+# QQA+35blxeSUcdZVAccAJkpAPLWhJqkMp22AjpAle8+/PxzrL5b65Yd3xrVWsno7
+# VDBTG99iNP8e0fRakyiF5UwXTn5b/aSTmX/fze+kde/vFfZH5/gZctguNBqmtKdM
+# fr27Tww9V/Ew1qY2jtaAdtcZLqXNfjQtiQIDAQABo4IB/jCCAfowEgYDVR0TAQH/
+# BAgwBgEB/wIBADBwBgNVHSAEaTBnMGUGC2CGSAGG+EUBBxcDMFYwKAYIKwYBBQUH
+# AgEWHGh0dHBzOi8vd3d3LnZlcmlzaWduLmNvbS9jcHMwKgYIKwYBBQUHAgIwHhoc
+# aHR0cHM6Ly93d3cudmVyaXNpZ24uY29tL3JwYTAOBgNVHQ8BAf8EBAMCAQYwbQYI
+# KwYBBQUHAQwEYTBfoV2gWzBZMFcwVRYJaW1hZ2UvZ2lmMCEwHzAHBgUrDgMCGgQU
+# j+XTGoasjY5rw8+AatRIGCx7GS4wJRYjaHR0cDovL2xvZ28udmVyaXNpZ24uY29t
+# L3ZzbG9nby5naWYwNAYDVR0fBC0wKzApoCegJYYjaHR0cDovL2NybC52ZXJpc2ln
+# bi5jb20vcGNhMy1nNS5jcmwwNAYIKwYBBQUHAQEEKDAmMCQGCCsGAQUFBzABhhho
+# dHRwOi8vb2NzcC52ZXJpc2lnbi5jb20wHQYDVR0lBBYwFAYIKwYBBQUHAwIGCCsG
+# AQUFBwMDMCgGA1UdEQQhMB+kHTAbMRkwFwYDVQQDExBWZXJpU2lnbk1QS0ktMi04
+# MB0GA1UdDgQWBBTPmanqeyb0S8mOj9fwBSbv49KnnTAfBgNVHSMEGDAWgBR/02Wn
+# wt3su/AwCfNDOfoCrzMxMzANBgkqhkiG9w0BAQUFAAOCAQEAViLmNKTEYctIuQGt
+# VqhkD9mMkcS7zAzlrXqgIn/fRzhKLWzRf3EafOxwqbHwT+QPDFP6FV7+dJhJJIWB
+# JhyRFEewTGOMu6E01MZF6A2FJnMD0KmMZG3ccZLmRQVgFVlROfxYFGv+1KTteWsI
+# DEFy5zciBgm+I+k/RJoe6WGdzLGQXPw90o2sQj1lNtS0PUAoj5sQzyMmzEsgy5Af
+# XYxMNMo82OU31m+lIL006ybZrg3nxZr3obQhkTNvhuhYuyV8dA5Y/nUbYz/OMXyb
+# jxuWnsVTdoRbnK2R+qztk7pdyCFTwoJTY68SDVCHERs9VFKWiiycPZIaCJoFLseT
+# pUiR0zGCBI0wggSJAgEBMIHJMIG0MQswCQYDVQQGEwJVUzEXMBUGA1UEChMOVmVy
+# aVNpZ24sIEluYy4xHzAdBgNVBAsTFlZlcmlTaWduIFRydXN0IE5ldHdvcmsxOzA5
+# BgNVBAsTMlRlcm1zIG9mIHVzZSBhdCBodHRwczovL3d3dy52ZXJpc2lnbi5jb20v
+# cnBhIChjKTEwMS4wLAYDVQQDEyVWZXJpU2lnbiBDbGFzcyAzIENvZGUgU2lnbmlu
+# ZyAyMDEwIENBAhBUdiNcNFTTm3aCoYc1sNh7MAkGBSsOAwIaBQCggYowGQYJKoZI
+# hvcNAQkDMQwGCisGAQQBgjcCAQQwHAYKKwYBBAGCNwIBCzEOMAwGCisGAQQBgjcC
+# ARUwIwYJKoZIhvcNAQkEMRYEFL0chr2xFAAxP/2oR18rZPjv8C72MCoGCisGAQQB
+# gjcCAQwxHDAaoRiAFmh0dHA6Ly93d3cuY2l0cml4LmNvbSAwDQYJKoZIhvcNAQEB
+# BQAEggEAO0pyGyI9Dbrn8k03J8uHhWJ6nMUSiQMAqKzonekPTal72ok28ORM0bvk
+# q7+zWtnHeO74Yy3LIH2UKnCzczm3e3ms6e3LwRKyefWOBInPsAYimYbtwl0m0p20
+# T81mCzdjm6UahOoTtABngGco1qByjpsfL6XiY1tdhNr9afoytzJpAGHbwzmSieLI
+# VjFtFyMQljqZ53rXxkNtj3WlneTH/TxaoM22HPA+D+12EPMr6mXJjLr/FU1NFrBK
+# wHE+gHmz1KMw/MuQuIzpP0zblkzCS94OKa3maArQY/Z/O5+e9hnIH8TrLJEmfQvY
+# 7OzX/ViwuJ1ZTDUELv+qtHIP9amByqGCAgswggIHBgkqhkiG9w0BCQYxggH4MIIB
+# 9AIBATByMF4xCzAJBgNVBAYTAlVTMR0wGwYDVQQKExRTeW1hbnRlYyBDb3Jwb3Jh
+# dGlvbjEwMC4GA1UEAxMnU3ltYW50ZWMgVGltZSBTdGFtcGluZyBTZXJ2aWNlcyBD
+# QSAtIEcyAhAOz/Q4yP6/NW4E2GqYGxpQMAkGBSsOAwIaBQCgXTAYBgkqhkiG9w0B
+# CQMxCwYJKoZIhvcNAQcBMBwGCSqGSIb3DQEJBTEPFw0xNjA5MDcyMDEwNDlaMCMG
+# CSqGSIb3DQEJBDEWBBSER1ZZno4QtY81YRZ6eAMyJrVawTANBgkqhkiG9w0BAQEF
+# AASCAQAHpBOV/qTA/KMmuURYiCVhE4wTHVbLo9IbPscfnmiTX7KyWyONGc62fS3S
+# 3tAqiqLL2ObZDPDI5UV6NPJKBUZXpCfGG39Boz2RXRe6BYpdWLMwSRmsABR+OkNm
+# 6T1KwC6Lopclr8/eI8qkRXLBJyX0FmePRWJ7vljpqx5Cu2elzmgxzfo0WFt2PG+5
+# Ecu8VN2MFHIfwzhaY/EirfqyAY2aH/gtpVMBFL7scJ2zfIR4BNPCKa9GVehU0grV
+# 4hYdLzGaPXiInQOzhzLx3PRFDvdRTdswP2Mux5s6n3+GOgmFvpRtz9AWNIrSuOaQ
+# gYTHv1jaK8foJnWxkMO32kf/pg96
+# SIG # End signature block
