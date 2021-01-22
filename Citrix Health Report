@@ -1,3 +1,4 @@
+####################Citrix Health Report#################################
 #### SMTP Settings####
 $reportemailsubject = "Citrix : Daily Health Report"
 $now = Get-Date	
