@@ -1,0 +1,14 @@
+Download and install the Citrix XenApp 6/6.5 SDK on a XenApp 6/6.5 server.
+
+On the XenApp6 server, start Windows PowerShell with Citrix XenApp Server SDK from the Start menu (Start > All Programs > Citrix > XenApp Server SDK).
+
+Displaying all Applications Published to a Specified Worker Group
+Run the following PowerShell command to display all applications published to a specified Worker Group of which <ServerName> is a member:
+
+get-xaapplication -WorkerGroupName LB1 | Format-Table -AutoSize -Property ApplicationType,FolderPath,BrowserName
+Note: The Format-Table cmdlet is optional and customizable to suit the needs of the administrator.
+
+Run the following PowerShell command to display all applications published to a specified Server through a Worker Group of which <ServerName> is a member:
+
+get-xaworkergroup -ServerName <ServerName> | Get-XAApplication | Format-Table -AutoSize -Property ApplicationType,FolderPath,BrowserName
+Note: The Format-Table cmdlet is optional and customizable to suit the needs of the administrator.
