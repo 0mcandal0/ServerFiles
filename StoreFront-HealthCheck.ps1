@@ -1,31 +1,3 @@
-#==============================================================================================
-# Created on: 06.2016 Version: 0.3
-# Created by: Sacha Thomet sachathomet.ch
-# File name: StoreFront-HealthCheck.ps1
-#
-# Description: This script checks a Citrix StoreFront 
-# It generates a HTML output File which will be sent as Email.
-#
-# tested on StoreFront 3.5
-#
-# Prerequisite: None, must run on a StoreFront server in the first version
-#
-# Autor-internal: 
-# Command to find out what are possibilities: 
-# Get-Command *-STF* -Type Cmdlet | Sort-Object -Property Module | Select-Object -Property Name,Module | Format-Table -AutoSize
-#
-# Call by : Manual or by Scheduled Task, e.g. once a day
-#=========== History ===========================================================================
-# Version 0.1
-# Initial Version
-# - Added Check of Services: CitrixCredentialWalletSvC CitrixPeerResolutionSvC 
-# Version 0.3
-# Initial Version
-# - Added Check of Services: WWWService
-# - Add Check's in deployment: URLReachable LastSourceServer LastSyncStatus LastSyncTime 
-#===============================================================================================
-
-#==============================================================================================
 if ((Get-PSSnapin "Citrix.*" -EA silentlycontinue) -eq $null) {
 try { Add-PSSnapin Citrix.* -ErrorAction Stop }
 catch { write-error "Error Get-PSSnapin Citrix.* Powershell snapin"; Return }
