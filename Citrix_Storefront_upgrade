@@ -13,7 +13,7 @@ This means that if you decide to uninstall Storefront from a server in an existi
 
 Thus if you use the same configuration settings, you can connect your new stores to the existing application subscription database so that users do not need to re subscribe to their applications.
 
-Remove a StoreFront server from the load balancing environment.
+disable/Remove a StoreFront server from the load balancing environment.
 Upgrading the server one-by-one enables you to maintain the availability of your StoreFront deployment so that users do not experience any loss of service. Removing the server from the load balancing environment prevents users from connecting to the server during the upgrade.
 
 Restart the StoreFront server.
