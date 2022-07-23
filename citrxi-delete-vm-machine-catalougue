@@ -1,0 +1,15 @@
+# Script to delete all VMS from the Machine Catalogue. please create a text file DeleteVms.txt in same folder which contain delete VMs name
+Asnp Citrix.*
+$DDC = "DDC ServerName"
+$Path = Split-Path $MyInvocation.MyCommand.path -Parent
+$DeleteVms = Get-Content $Path\DeleteVms.txt | Where-Object { $_.Trim() -ne ''}
+$DesktopGroup = "DesktopGroupName"
+
+Set-BrokerPrivateDesktop -AdminAddress "$DDC" -InMaintenanceMode $true -MachineName ="$DeleteVms"
+
+New-BrokerHosingPowerAction -AdminAddress "$DDC" -MachineName "$DeleteVms" - Action Shutdown
+
+Remove-BrokerMachine -AdminAddress "$DDC" -MachineName "DeleteVms" -DesktopGroup "DesktopGroup" -Force
+
+Remove-BrokerMachine -AdminAddress "$DDC" -MachineName "$DeleteVms"
+
